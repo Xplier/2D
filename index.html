@@ -1,6 +1,8 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Vertical Platform Climber</title>
     <style>
         body {
@@ -19,39 +21,26 @@
         #controls {
             position: absolute;
             bottom: 20px;
-            display: flex;
-            justify-content: center;
-            width: 100%;
-        }
-        .control-button {
-            width: 60px;
-            height: 60px;
-            margin: 0 10px;
-            background-color: rgba(0, 0, 0, 0.5);
-            border-radius: 50%;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            color: white;
-            font-size: 20px;
-            user-select: none;
-        }
-        #jumpButton {
-            position: absolute;
-            bottom: 90px;
-            left: calc(50% - 30px);
-            width: 60px;
-            height: 60px;
-            border-radius: 50%;
-            background-color: rgba(0, 0, 0, 0.5);
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            color: white;
-            font-size: 20px;
-        }
-        #controls {
             display: none; /* Initially hide controls */
+        }
+        #joystick {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            width: 100px;
+            height: 100px;
+            background: rgba(0, 0, 0, 0.5);
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        #joystick .stick {
+            width: 50px;
+            height: 50px;
+            background: rgba(255, 255, 255, 0.8);
+            border-radius: 50%;
+            position: absolute;
         }
     </style>
 </head>
@@ -66,7 +55,7 @@
             canvas.width = window.innerWidth * 0.8;  // 80% of screen width
             canvas.height = window.innerHeight * 0.8;  // 80% of screen height
         }
-        
+
         window.addEventListener('resize', resizeCanvas);
         resizeCanvas();
 
@@ -203,6 +192,11 @@
             jump: false
         };
 
+        // Joystick handling variables
+        let joystickCenter = { x: 0, y: 0 };
+        let joystickStick = { x: 0, y: 0 };
+        let joystickRadius = 40; // Radius of the joystick control area
+
         // Handle mobile touch events
         let touchStartX = 0;
         let touchStartY = 0;
@@ -213,17 +207,32 @@
             touchStartX = touch.clientX;
             touchStartY = touch.clientY;
 
-            // Left button
-            if (touchStartX < canvas.width / 3) {
-                keys.left = true;
+            // Start dragging joystick
+            if (touchStartX < canvas.width / 3 && touchStartY > canvas.height / 2) {
+                joystickCenter.x = touchStartX;
+                joystickCenter.y = touchStartY;
+                document.getElementById('joystick').style.display = 'block'; // Show joystick
             }
-            // Right button
-            else if (touchStartX > 2 * canvas.width / 3) {
-                keys.right = true;
+        });
+
+        document.addEventListener('touchmove', (e) => {
+            e.preventDefault();
+            const touch = e.touches[0];
+            const dx = touch.clientX - joystickCenter.x;
+            const dy = touch.clientY - joystickCenter.y;
+            const distance = Math.min(Math.sqrt(dx * dx + dy * dy), joystickRadius);
+
+            joystickStick.x = distance * (dx / Math.sqrt(dx * dx + dy * dy));
+            joystickStick.y = distance * (dy / Math.sqrt(dx * dx + dy * dy));
+
+            // Set the velocity direction
+            if (Math.abs(joystickStick.x) > 0.1) {
+                keys.left = joystickStick.x < 0;
+                keys.right = joystickStick.x > 0;
             }
-            // Jump button
-            else {
-                keys.jump = true;
+
+            if (Math.abs(joystickStick.y) > 0.1) {
+                keys.jump = joystickStick.y < 0;
             }
         });
 
@@ -232,28 +241,10 @@
             keys.left = false;
             keys.right = false;
             keys.jump = false;
+            document.getElementById('joystick').style.display = 'none'; // Hide joystick
         });
 
-        // On-screen buttons for mobile only
-        if (isMobile) {
-            const leftButton = document.createElement('div');
-            leftButton.className = 'control-button';
-            leftButton.textContent = '←';
-            leftButton.onclick = () => { keys.left = true; };
-            document.body.appendChild(leftButton);
-
-            const rightButton = document.createElement('div');
-            rightButton.className = 'control-button';
-            rightButton.textContent = '→';
-            rightButton.onclick = () => { keys.right = true; };
-            document.body.appendChild(rightButton);
-
-            const jumpButton = document.createElement('div');
-            jumpButton.id = 'jumpButton';
-            jumpButton.textContent = '↑';
-            jumpButton.onclick = () => { keys.jump = true; };
-            document.body.appendChild(jumpButton);
-        }
+        // Game logic
 
         const gravity = 0.5;
         const friction = 0.8;
@@ -329,10 +320,9 @@
         gameLoop();
     </script>
 
-    <div id="controls">
-        <div class="control-button">←</div>
-        <div class="control-button">→</div>
-        <div id="jumpButton" class="control-button">↑</div>
+    <!-- Joystick Container -->
+    <div id="joystick">
+        <div class="stick"></div>
     </div>
 </body>
 </html>
