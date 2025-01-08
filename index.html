@@ -50,6 +50,9 @@
             color: white;
             font-size: 20px;
         }
+        #controls {
+            display: none; /* Initially hide controls */
+        }
     </style>
 </head>
 <body>
@@ -66,6 +69,14 @@
         
         window.addEventListener('resize', resizeCanvas);
         resizeCanvas();
+
+        // Detect mobile screen
+        const isMobile = window.innerWidth < 768;
+
+        // Show or hide mobile controls based on screen width
+        if (isMobile) {
+            document.getElementById('controls').style.display = 'flex';
+        }
 
         class Player {
             constructor() {
@@ -187,4 +198,141 @@
         }
 
         const keys = {
-            left: 
+            left: false,
+            right: false,
+            jump: false
+        };
+
+        // Handle mobile touch events
+        let touchStartX = 0;
+        let touchStartY = 0;
+
+        document.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            const touch = e.touches[0];
+            touchStartX = touch.clientX;
+            touchStartY = touch.clientY;
+
+            // Left button
+            if (touchStartX < canvas.width / 3) {
+                keys.left = true;
+            }
+            // Right button
+            else if (touchStartX > 2 * canvas.width / 3) {
+                keys.right = true;
+            }
+            // Jump button
+            else {
+                keys.jump = true;
+            }
+        });
+
+        document.addEventListener('touchend', (e) => {
+            e.preventDefault();
+            keys.left = false;
+            keys.right = false;
+            keys.jump = false;
+        });
+
+        // On-screen buttons for mobile only
+        if (isMobile) {
+            const leftButton = document.createElement('div');
+            leftButton.className = 'control-button';
+            leftButton.textContent = '←';
+            leftButton.onclick = () => { keys.left = true; };
+            document.body.appendChild(leftButton);
+
+            const rightButton = document.createElement('div');
+            rightButton.className = 'control-button';
+            rightButton.textContent = '→';
+            rightButton.onclick = () => { keys.right = true; };
+            document.body.appendChild(rightButton);
+
+            const jumpButton = document.createElement('div');
+            jumpButton.id = 'jumpButton';
+            jumpButton.textContent = '↑';
+            jumpButton.onclick = () => { keys.jump = true; };
+            document.body.appendChild(jumpButton);
+        }
+
+        const gravity = 0.5;
+        const friction = 0.8;
+        const jumpPadForce = -20;
+
+        function update() {
+            if (keys.left && player.velocityX > -player.maxSpeed) {
+                player.velocityX -= 0.5;
+            }
+            if (keys.right && player.velocityX < player.maxSpeed) {
+                player.velocityX += 0.5;
+            }
+            if (!keys.left && !keys.right) {
+                player.velocityX *= friction;
+            }
+
+            player.velocityY += gravity;
+
+            if (keys.jump && player.isGrounded) {
+                player.velocityY = player.jumpForce;
+                player.isGrounded = false;
+            }
+
+            player.x += player.velocityX;
+            player.y += player.velocityY;
+
+            if (player.x < player.size/2) player.x = player.size/2;
+            if (player.x > canvas.width - player.size/2) player.x = canvas.width - player.size/2;
+
+            player.isGrounded = false;
+            platforms.forEach(platform => {
+                if (!platform.isActive()) return;
+
+                if (player.x + player.size/2 > platform.x - platform.width/2 &&
+                    player.x - player.size/2 < platform.x + platform.width/2 &&
+                    player.y + player.size/2 > platform.y &&
+                    player.y - player.size/2 < platform.y + platform.height) {
+                    if (player.velocityY > 0) {
+                        player.y = platform.y - player.size/2;
+                        player.velocityY = 0;
+                        player.isGrounded = true;
+                    }
+                }
+            });
+
+            platforms = platforms.filter(platform => platform.y < canvas.height + 100);
+
+            if (player.y > canvas.height + player.size) {
+                player.reset();
+                initPlatforms();
+            }
+        }
+
+        function render() {
+            ctx.fillStyle = '#87CEEB';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            platforms.forEach(platform => platform.draw());
+            player.draw();
+
+            ctx.fillStyle = 'white';
+            ctx.font = '20px Arial';
+            ctx.fillText(`Score: ${Math.floor(player.score)}`, 10, 30);
+            ctx.fillText(`High: ${Math.floor(highScore)}`, canvas.width - 120, 30);
+        }
+
+        function gameLoop() {
+            update();
+            render();
+            requestAnimationFrame(gameLoop);
+        }
+
+        initPlatforms();
+        gameLoop();
+    </script>
+
+    <div id="controls">
+        <div class="control-button">←</div>
+        <div class="control-button">→</div>
+        <div id="jumpButton" class="control-button">↑</div>
+    </div>
+</body>
+</html>
