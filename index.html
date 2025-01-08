@@ -1,6 +1,8 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Vertical Platform Climber</title>
     <style>
         body {
@@ -203,57 +205,64 @@
             jump: false
         };
 
-        // Handle mobile touch events
+        // Variables for swipe detection
         let touchStartX = 0;
         let touchStartY = 0;
+        let touchEndX = 0;
+        let touchEndY = 0;
 
+        // Handle mobile touch events
         document.addEventListener('touchstart', (e) => {
             e.preventDefault();
             const touch = e.touches[0];
             touchStartX = touch.clientX;
             touchStartY = touch.clientY;
+        });
 
-            // Left button
-            if (touchStartX < canvas.width / 3) {
-                keys.left = true;
-            }
-            // Right button
-            else if (touchStartX > 2 * canvas.width / 3) {
-                keys.right = true;
-            }
-            // Jump button
-            else {
-                keys.jump = true;
-            }
+        document.addEventListener('touchmove', (e) => {
+            e.preventDefault();
+            const touch = e.touches[0];
+            touchEndX = touch.clientX;
+            touchEndY = touch.clientY;
         });
 
         document.addEventListener('touchend', (e) => {
             e.preventDefault();
-            keys.left = false;
-            keys.right = false;
-            keys.jump = false;
+            // Detect swipe up gesture
+            if (touchStartY - touchEndY > 50) {
+                keys.jump = true;
+            }
+
+            // Detect left side touch hold
+            if (touchStartX < canvas.width / 2) {
+                keys.left = false;
+            }
+
+            // Detect right side touch hold
+            if (touchStartX > canvas.width / 2) {
+                keys.right = false;
+            }
+
+            // Reset jump after the swipe up action
+            if (keys.jump) {
+                keys.jump = false;
+            }
         });
 
-        // On-screen buttons for mobile only
-        if (isMobile) {
-            const leftButton = document.createElement('div');
-            leftButton.className = 'control-button';
-            leftButton.textContent = '←';
-            leftButton.onclick = () => { keys.left = true; };
-            document.body.appendChild(leftButton);
+        // Handle left/right holding on touch devices
+        document.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            const touch = e.touches[0];
 
-            const rightButton = document.createElement('div');
-            rightButton.className = 'control-button';
-            rightButton.textContent = '→';
-            rightButton.onclick = () => { keys.right = true; };
-            document.body.appendChild(rightButton);
-
-            const jumpButton = document.createElement('div');
-            jumpButton.id = 'jumpButton';
-            jumpButton.textContent = '↑';
-            jumpButton.onclick = () => { keys.jump = true; };
-            document.body.appendChild(jumpButton);
-        }
+            // Left side of the screen
+            if (touch.clientX < canvas.width / 2) {
+                keys.left = true;
+            }
+            // Right side of the screen
+            else {
+                keys.right = true;
+            }
+        });
 
         const gravity = 0.5;
         const friction = 0.8;
@@ -266,9 +275,6 @@
             if (keys.right && player.velocityX < player.maxSpeed) {
                 player.velocityX += 0.5;
             }
-            if (!keys.left && !keys.right) {
-                player.velocityX *= friction;
-            }
 
             player.velocityY += gravity;
 
@@ -280,19 +286,20 @@
             player.x += player.velocityX;
             player.y += player.velocityY;
 
-            if (player.x < player.size/2) player.x = player.size/2;
-            if (player.x > canvas.width - player.size/2) player.x = canvas.width - player.size/2;
+            if (player.x < player.size / 2) player.x = player.size / 2;
+            if (player.x > canvas.width - player.size / 2) player.x = canvas.width - player.size / 2;
 
             player.isGrounded = false;
+
             platforms.forEach(platform => {
                 if (!platform.isActive()) return;
 
-                if (player.x + player.size/2 > platform.x - platform.width/2 &&
-                    player.x - player.size/2 < platform.x + platform.width/2 &&
-                    player.y + player.size/2 > platform.y &&
-                    player.y - player.size/2 < platform.y + platform.height) {
+                if (player.x + player.size / 2 > platform.x - platform.width / 2 &&
+                    player.x - player.size / 2 < platform.x + platform.width / 2 &&
+                    player.y + player.size / 2 > platform.y &&
+                    player.y - player.size / 2 < platform.y + platform.height) {
                     if (player.velocityY > 0) {
-                        player.y = platform.y - player.size/2;
+                        player.y = platform.y - player.size / 2;
                         player.velocityY = 0;
                         player.isGrounded = true;
                     }
