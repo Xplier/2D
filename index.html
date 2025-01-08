@@ -1,8 +1,6 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Vertical Platform Climber</title>
     <style>
         body {
@@ -12,35 +10,9 @@
             align-items: center;
             min-height: 100vh;
             background: #333;
-            overflow: hidden;
         }
         canvas {
             border: 2px solid white;
-            touch-action: none; /* Disable pinch-zoom on mobile */
-        }
-        #controls {
-            position: absolute;
-            bottom: 20px;
-            display: none; /* Initially hide controls */
-        }
-        #joystick {
-            position: absolute;
-            bottom: 20px;
-            left: 20px;
-            width: 100px;
-            height: 100px;
-            background: rgba(0, 0, 0, 0.5);
-            border-radius: 50%;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-        }
-        #joystick .stick {
-            width: 50px;
-            height: 50px;
-            background: rgba(255, 255, 255, 0.8);
-            border-radius: 50%;
-            position: absolute;
         }
     </style>
 </head>
@@ -48,24 +20,9 @@
     <script>
         const canvas = document.createElement('canvas');
         const ctx = canvas.getContext('2d');
+        canvas.width = 400;
+        canvas.height = 600;
         document.body.appendChild(canvas);
-
-        // Function to set canvas resolution dynamically
-        function resizeCanvas() {
-            canvas.width = window.innerWidth * 0.8;  // 80% of screen width
-            canvas.height = window.innerHeight * 0.8;  // 80% of screen height
-        }
-
-        window.addEventListener('resize', resizeCanvas);
-        resizeCanvas();
-
-        // Detect mobile screen
-        const isMobile = window.innerWidth < 768;
-
-        // Show or hide mobile controls based on screen width
-        if (isMobile) {
-            document.getElementById('controls').style.display = 'flex';
-        }
 
         class Player {
             constructor() {
@@ -92,6 +49,7 @@
             }
 
             draw() {
+                // Draw player
                 ctx.beginPath();
                 ctx.roundRect(this.x - this.size/2, this.y - this.size/2, 
                             this.size, this.size, 8);
@@ -99,6 +57,7 @@
                 ctx.fill();
                 ctx.closePath();
 
+                // Draw timer if standing still and after delay
                 if (this.isGrounded && Math.abs(this.velocityX) < 0.1) {
                     const currentTime = Date.now();
                     const standingTime = currentTime - this.lastMoveTime;
@@ -124,7 +83,7 @@
                 this.type = type;
                 this.hasJumpPad = Math.random() < 0.15;
                 this.spawnTime = Date.now();
-                this.disappearTime = 700;
+                this.disappearTime = 700; // 0.7 seconds for disappearing platforms
                 this.alpha = 1;
             }
 
@@ -146,12 +105,14 @@
             draw() {
                 if (this.alpha <= 0) return;
 
+                // Platform
                 ctx.beginPath();
                 ctx.roundRect(this.x - this.width/2, this.y, this.width, this.height, 5);
                 ctx.fillStyle = this.type === 'normal' ? '#4CAF50' : `rgba(128, 128, 128, ${this.alpha})`;
                 ctx.fill();
                 ctx.closePath();
 
+                // Jump pad
                 if (this.hasJumpPad && this.type === 'normal') {
                     ctx.beginPath();
                     ctx.arc(this.x, this.y - 5, 8, 0, Math.PI * 2);
@@ -169,8 +130,9 @@
 
         function initPlatforms() {
             platforms = [];
-            platforms.push(new Platform(canvas.width/2, canvas.height - 50, 'normal'));
-            for (let i = 0; i < 8; i++) {
+            platforms.push(new Platform(canvas.width / 2, canvas.height - 50, 'normal'));
+            
+            for (let i = 0; i < 5; i++) {
                 generatePlatform();
             }
         }
@@ -183,112 +145,121 @@
             const minX = 80;
             const maxX = canvas.width - 80;
             const x = Math.random() * (maxX - minX) + minX;
-            platforms.push(new Platform(x, y));
+            
+            // Increase disappearing platform frequency with height
+            const heightFactor = Math.min(0.8, player.score / 10000); // Max 80% chance at height 10000
+            const isDisappearing = Math.random() < heightFactor;
+            
+            // Reduce platform generation with height
+            if (Math.random() > (1 - heightFactor * 0.5)) { // Up to 40% chance to skip platform
+                return;
+            }
+            
+            platforms.push(new Platform(x, y, isDisappearing ? 'disappearing' : 'normal'));
         }
 
-        const keys = {
-            left: false,
-            right: false,
-            jump: false
-        };
-
-        // Joystick handling variables
-        let joystickCenter = { x: 0, y: 0 };
-        let joystickStick = { x: 0, y: 0 };
-        let joystickRadius = 40; // Radius of the joystick control area
-
-        // Handle mobile touch events
         let touchStartX = 0;
         let touchStartY = 0;
+        let touchMoveX = 0;
+        let touchMoveY = 0;
 
-        document.addEventListener('touchstart', (e) => {
-            e.preventDefault();
-            const touch = e.touches[0];
-            touchStartX = touch.clientX;
-            touchStartY = touch.clientY;
+        let swipeThreshold = 50; // Distance to detect a swipe
 
-            // Start dragging joystick
-            if (touchStartX < canvas.width / 3 && touchStartY > canvas.height / 2) {
-                joystickCenter.x = touchStartX;
-                joystickCenter.y = touchStartY;
-                document.getElementById('joystick').style.display = 'block'; // Show joystick
-            }
+        canvas.addEventListener('touchstart', (e) => {
+            touchStartX = e.touches[0].clientX;
+            touchStartY = e.touches[0].clientY;
         });
 
-        document.addEventListener('touchmove', (e) => {
-            e.preventDefault();
-            const touch = e.touches[0];
-            const dx = touch.clientX - joystickCenter.x;
-            const dy = touch.clientY - joystickCenter.y;
-            const distance = Math.min(Math.sqrt(dx * dx + dy * dy), joystickRadius);
-
-            joystickStick.x = distance * (dx / Math.sqrt(dx * dx + dy * dy));
-            joystickStick.y = distance * (dy / Math.sqrt(dx * dx + dy * dy));
-
-            // Set the velocity direction
-            if (Math.abs(joystickStick.x) > 0.1) {
-                keys.left = joystickStick.x < 0;
-                keys.right = joystickStick.x > 0;
-            }
-
-            if (Math.abs(joystickStick.y) > 0.1) {
-                keys.jump = joystickStick.y < 0;
-            }
+        canvas.addEventListener('touchmove', (e) => {
+            touchMoveX = e.touches[0].clientX;
+            touchMoveY = e.touches[0].clientY;
         });
 
-        document.addEventListener('touchend', (e) => {
-            e.preventDefault();
-            keys.left = false;
-            keys.right = false;
-            keys.jump = false;
-            document.getElementById('joystick').style.display = 'none'; // Hide joystick
-        });
+        canvas.addEventListener('touchend', (e) => {
+            // Handle swipe up for jump
+            if (touchStartY - touchMoveY > swipeThreshold && player.isGrounded) {
+                player.velocityY = player.jumpForce;
+                player.isGrounded = false;
+            }
 
-        // Game logic
+            // Handle left or right swipe for movement
+            if (touchMoveX > touchStartX + swipeThreshold) {  // swipe right
+                if (player.velocityX < player.maxSpeed) {
+                    player.velocityX += 0.5;
+                }
+            } else if (touchMoveX < touchStartX - swipeThreshold) {  // swipe left
+                if (player.velocityX > -player.maxSpeed) {
+                    player.velocityX -= 0.5;
+                }
+            }
+        });
 
         const gravity = 0.5;
         const friction = 0.8;
         const jumpPadForce = -20;
 
         function update() {
-            if (keys.left && player.velocityX > -player.maxSpeed) {
-                player.velocityX -= 0.5;
-            }
-            if (keys.right && player.velocityX < player.maxSpeed) {
-                player.velocityX += 0.5;
-            }
-            if (!keys.left && !keys.right) {
-                player.velocityX *= friction;
+            // Update and check platform states
+            platforms.forEach(platform => platform.update());
+
+            if (player.isGrounded && Math.abs(player.velocityX) < 0.1) {
+                const currentTime = Date.now();
+                if (currentTime - player.lastMoveTime >= player.standTimer) {
+                    player.reset();
+                    initPlatforms();
+                    return;
+                }
             }
 
             player.velocityY += gravity;
 
-            if (keys.jump && player.isGrounded) {
-                player.velocityY = player.jumpForce;
-                player.isGrounded = false;
-            }
-
             player.x += player.velocityX;
             player.y += player.velocityY;
 
-            if (player.x < player.size/2) player.x = player.size/2;
-            if (player.x > canvas.width - player.size/2) player.x = canvas.width - player.size/2;
+            if (player.x < player.size / 2) {
+                player.x = player.size / 2;
+                player.velocityX = 0;
+            }
+            if (player.x > canvas.width - player.size / 2) {
+                player.x = canvas.width - player.size / 2;
+                player.velocityX = 0;
+            }
 
             player.isGrounded = false;
+
             platforms.forEach(platform => {
                 if (!platform.isActive()) return;
-
-                if (player.x + player.size/2 > platform.x - platform.width/2 &&
-                    player.x - player.size/2 < platform.x + platform.width/2 &&
-                    player.y + player.size/2 > platform.y &&
-                    player.y - player.size/2 < platform.y + platform.height) {
-                    if (player.velocityY > 0) {
-                        player.y = platform.y - player.size/2;
+                
+                if (player.x + player.size / 2 > platform.x - platform.width / 2 &&
+                    player.x - player.size / 2 < platform.x + platform.width / 2 &&
+                    player.y + player.size / 2 > platform.y &&
+                    player.y - player.size / 2 < platform.y + platform.height) {
+                    
+                    if (player.velocityY > 0 && 
+                        player.y < platform.y + platform.height / 2) {
+                        player.y = platform.y - player.size / 2;
                         player.velocityY = 0;
                         player.isGrounded = true;
+
+                        if (platform.hasJumpPad && platform.type === 'normal') {
+                            player.velocityY = jumpPadForce;
+                            player.isGrounded = false;
+                        }
                     }
                 }
             });
+
+            if (player.y < canvas.height * 0.4) {
+                const diff = canvas.height * 0.4 - player.y;
+                player.y += diff;
+                platforms.forEach(platform => platform.y += diff);
+                player.score += Math.floor(diff);
+                highScore = Math.max(highScore, player.score);
+            }
+
+            while (platforms[platforms.length - 1].y > 0) {
+                generatePlatform();
+            }
 
             platforms = platforms.filter(platform => platform.y < canvas.height + 100);
 
@@ -319,10 +290,5 @@
         initPlatforms();
         gameLoop();
     </script>
-
-    <!-- Joystick Container -->
-    <div id="joystick">
-        <div class="stick"></div>
-    </div>
 </body>
 </html>
