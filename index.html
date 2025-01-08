@@ -24,7 +24,6 @@
             display: flex;
             justify-content: center;
             width: 100%;
-            display: none; /* Hidden by default */
         }
         .control-button {
             width: 80px;
@@ -53,9 +52,20 @@
             color: white;
             font-size: 30px;
         }
+        #noMobileMessage {
+            color: white;
+            font-size: 30px;
+            text-align: center;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+        }
     </style>
 </head>
 <body>
+    <div id="noMobileMessage">This game is only available on mobile devices.</div>
+
     <script>
         const canvas = document.createElement('canvas');
         const ctx = canvas.getContext('2d');
@@ -69,14 +79,6 @@
 
         window.addEventListener('resize', resizeCanvas);
         resizeCanvas();
-
-        // Detect mobile screen
-        const isMobile = window.innerWidth < 768;
-
-        // If mobile, show the touch controls
-        if (isMobile) {
-            document.getElementById('controls').style.display = 'flex';
-        }
 
         class Player {
             constructor() {
@@ -323,5 +325,6 @@
         <div class="control-button" id="rightButton">→</div>
     </div>
     <div id="jumpButton" class="control-button">↑</div>
+
 </body>
 </html>
