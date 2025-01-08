@@ -26,31 +26,31 @@
             width: 100%;
         }
         .control-button {
-            width: 60px;
-            height: 60px;
-            margin: 0 10px;
+            width: 80px;
+            height: 80px;
+            margin: 0 15px;
             background-color: rgba(0, 0, 0, 0.5);
             border-radius: 50%;
             display: flex;
             justify-content: center;
             align-items: center;
             color: white;
-            font-size: 20px;
+            font-size: 30px;
             user-select: none;
         }
         #jumpButton {
             position: absolute;
             bottom: 90px;
-            left: calc(50% - 30px);
-            width: 60px;
-            height: 60px;
+            left: calc(50% - 40px);
+            width: 80px;
+            height: 80px;
             border-radius: 50%;
             background-color: rgba(0, 0, 0, 0.5);
             display: flex;
             justify-content: center;
             align-items: center;
             color: white;
-            font-size: 20px;
+            font-size: 30px;
         }
         #controls {
             display: none; /* Initially hide controls */
@@ -106,7 +106,7 @@
 
             draw() {
                 ctx.beginPath();
-                ctx.roundRect(this.x - this.size/2, this.y - this.size/2, 
+                ctx.roundRect(this.x - this.size / 2, this.y - this.size / 2, 
                             this.size, this.size, 8);
                 ctx.fillStyle = '#FF5722';
                 ctx.fill();
@@ -160,7 +160,7 @@
                 if (this.alpha <= 0) return;
 
                 ctx.beginPath();
-                ctx.roundRect(this.x - this.width/2, this.y, this.width, this.height, 5);
+                ctx.roundRect(this.x - this.width / 2, this.y, this.width, this.height, 5);
                 ctx.fillStyle = this.type === 'normal' ? '#4CAF50' : `rgba(128, 128, 128, ${this.alpha})`;
                 ctx.fill();
                 ctx.closePath();
@@ -182,7 +182,7 @@
 
         function initPlatforms() {
             platforms = [];
-            platforms.push(new Platform(canvas.width/2, canvas.height - 50, 'normal'));
+            platforms.push(new Platform(canvas.width / 2, canvas.height - 50, 'normal'));
             for (let i = 0; i < 8; i++) {
                 generatePlatform();
             }
@@ -228,8 +228,9 @@
 
         document.addEventListener('touchend', (e) => {
             e.preventDefault();
-            // Detect swipe up gesture
-            if (touchStartY - touchEndY > 50) {
+
+            // Detect swipe up gesture (25px threshold)
+            if (touchStartY - touchEndY > 25) {
                 keys.jump = true;
             }
 
@@ -293,7 +294,6 @@
 
             platforms.forEach(platform => {
                 if (!platform.isActive()) return;
-
                 if (player.x + player.size / 2 > platform.x - platform.width / 2 &&
                     player.x - player.size / 2 < platform.x + platform.width / 2 &&
                     player.y + player.size / 2 > platform.y &&
