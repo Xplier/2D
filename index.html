@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Vertical Platform Climber</title>
+    <title>Vertical Platform Climber - Mobile Only</title>
     <style>
         body {
             margin: 0;
@@ -52,12 +52,20 @@
             color: white;
             font-size: 30px;
         }
-        #controls {
-            display: none; /* Initially hide controls */
+        #noMobileMessage {
+            color: white;
+            font-size: 30px;
+            text-align: center;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
         }
     </style>
 </head>
 <body>
+    <div id="noMobileMessage">This game is only available on mobile devices.</div>
+
     <script>
         const canvas = document.createElement('canvas');
         const ctx = canvas.getContext('2d');
@@ -68,16 +76,19 @@
             canvas.width = window.innerWidth * 0.8;  // 80% of screen width
             canvas.height = window.innerHeight * 0.8;  // 80% of screen height
         }
-        
+
         window.addEventListener('resize', resizeCanvas);
         resizeCanvas();
 
         // Detect mobile screen
         const isMobile = window.innerWidth < 768;
 
-        // Show or hide mobile controls based on screen width
-        if (isMobile) {
-            document.getElementById('controls').style.display = 'flex';
+        // If not mobile, show a message and do nothing
+        if (!isMobile) {
+            document.getElementById('noMobileMessage').style.display = 'block';
+            return;  // Exit the script
+        } else {
+            document.getElementById('noMobileMessage').style.display = 'none';
         }
 
         class Player {
@@ -199,12 +210,6 @@
             platforms.push(new Platform(x, y));
         }
 
-        const keys = {
-            left: false,
-            right: false,
-            jump: false
-        };
-
         // Variables for swipe detection
         let touchStartX = 0;
         let touchStartY = 0;
@@ -236,32 +241,17 @@
 
             // Detect left side touch hold
             if (touchStartX < canvas.width / 2) {
-                keys.left = false;
+                keys.left = true;
             }
 
             // Detect right side touch hold
             if (touchStartX > canvas.width / 2) {
-                keys.right = false;
+                keys.right = true;
             }
 
             // Reset jump after the swipe up action
             if (keys.jump) {
                 keys.jump = false;
-            }
-        });
-
-        // Handle left/right holding on touch devices
-        document.addEventListener('touchstart', (e) => {
-            e.preventDefault();
-            const touch = e.touches[0];
-
-            // Left side of the screen
-            if (touch.clientX < canvas.width / 2) {
-                keys.left = true;
-            }
-            // Right side of the screen
-            else {
-                keys.right = true;
             }
         });
 
@@ -275,6 +265,10 @@
             }
             if (keys.right && player.velocityX < player.maxSpeed) {
                 player.velocityX += 0.5;
+            }
+
+            if (!keys.left && !keys.right) {
+                player.velocityX *= friction;
             }
 
             player.velocityY += gravity;
@@ -336,10 +330,11 @@
         gameLoop();
     </script>
 
+    <!-- Mobile Controls -->
     <div id="controls">
-        <div class="control-button">←</div>
-        <div class="control-button">→</div>
-        <div id="jumpButton" class="control-button">↑</div>
+        <div class="control-button" id="leftButton">←</div>
+        <div class="control-button" id="rightButton">→</div>
     </div>
+    <div id="jumpButton" class="control-button">↑</div>
 </body>
 </html>
