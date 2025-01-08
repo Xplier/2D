@@ -1,14 +1,288 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <meta charset="UTF-8" />
-    <title>title</title>
+    <title>Vertical Platform Climber</title>
+    <style>
+        body {
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background: #333;
+        }
+        canvas {
+            border: 2px solid white;
+        }
+    </style>
 </head>
 <body>
+    <script>
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        canvas.width = 400;
+        canvas.height = 600;
+        document.body.appendChild(canvas);
 
-    <h1>Test header 1</h1>
+        class Player {
+            constructor() {
+                this.reset();
+                this.size = 30;
+                this.jumpForce = -15;
+                this.maxSpeed = 8;
+                this.standTimer = 3000;
+                this.lastMoveTime = Date.now();
+                this.standTimerVisible = false;
+                this.standTimerDelay = 400; // 0.4 seconds before showing timer
+            }
 
-    <p>Test Text</p>
-    
+            reset() {
+                this.x = canvas.width / 2;
+                this.y = canvas.height - 100;
+                this.velocityX = 0;
+                this.velocityY = 0;
+                this.isGrounded = false;
+                this.score = 0;
+                this.standTimer = 3000;
+                this.lastMoveTime = Date.now();
+                this.standTimerVisible = false;
+            }
+
+            draw() {
+                // Draw player
+                ctx.beginPath();
+                ctx.roundRect(this.x - this.size/2, this.y - this.size/2, 
+                            this.size, this.size, 8);
+                ctx.fillStyle = '#FF5722';
+                ctx.fill();
+                ctx.closePath();
+
+                // Draw timer if standing still and after delay
+                if (this.isGrounded && Math.abs(this.velocityX) < 0.1) {
+                    const currentTime = Date.now();
+                    const standingTime = currentTime - this.lastMoveTime;
+                    
+                    if (standingTime >= this.standTimerDelay) {
+                        const timeLeft = Math.max(0, (this.standTimer - standingTime) / 1000).toFixed(1);
+                        if (standingTime < this.standTimer) {
+                            ctx.fillStyle = 'white';
+                            ctx.font = '20px Arial';
+                            ctx.fillText(timeLeft, this.x - 10, this.y - this.size);
+                        }
+                    }
+                }
+            }
+        }
+
+        class Platform {
+            constructor(x, y, type = 'normal') {
+                this.width = Math.random() * 80 + 100;
+                this.height = 15;
+                this.x = x;
+                this.y = y;
+                this.type = type;
+                this.hasJumpPad = Math.random() < 0.15;
+                this.spawnTime = Date.now();
+                this.disappearTime = 700; // 0.7 seconds for disappearing platforms
+                this.alpha = 1;
+            }
+
+            update() {
+                if (this.type === 'disappearing') {
+                    const age = Date.now() - this.spawnTime;
+                    if (age < this.disappearTime) {
+                        this.alpha = 1 - (age / this.disappearTime);
+                    } else {
+                        this.alpha = 0;
+                    }
+                }
+            }
+
+            isActive() {
+                return this.type === 'normal' || this.alpha > 0;
+            }
+
+            draw() {
+                if (this.alpha <= 0) return;
+
+                // Platform
+                ctx.beginPath();
+                ctx.roundRect(this.x - this.width/2, this.y, this.width, this.height, 5);
+                ctx.fillStyle = this.type === 'normal' ? '#4CAF50' : `rgba(128, 128, 128, ${this.alpha})`;
+                ctx.fill();
+                ctx.closePath();
+
+                // Jump pad
+                if (this.hasJumpPad && this.type === 'normal') {
+                    ctx.beginPath();
+                    ctx.arc(this.x, this.y - 5, 8, 0, Math.PI * 2);
+                    ctx.fillStyle = '#FFD700';
+                    ctx.fill();
+                    ctx.closePath();
+                }
+            }
+        }
+
+        const player = new Player();
+        let platforms = [];
+        let gameSpeed = 2;
+        let highScore = 0;
+
+        function initPlatforms() {
+            platforms = [];
+            platforms.push(new Platform(canvas.width/2, canvas.height - 50, 'normal'));
+            
+            // Generate more platforms initially based on the new rate
+            for (let i = 0; i < 8; i++) {
+                generatePlatform();
+            }
+        }
+
+        function generatePlatform() {
+            const minGap = 120;
+            const maxGap = 170;
+            const lastPlatform = platforms[platforms.length - 1];
+            const y = lastPlatform.y - (Math.random() * (maxGap - minGap) + minGap);
+            const minX = 80;
+            const maxX = canvas.width - 80;
+            const x = Math.random() * (maxX - minX) + minX;
+            
+            // Increase disappearing platform frequency with height
+            const heightFactor = Math.min(0.8, player.score / 10000); // Max 80% chance at height 10000
+            const isDisappearing = Math.random() < heightFactor;
+            
+            // Reduce platform generation with height
+            if (Math.random() > (1 - heightFactor * 0.5)) { // Up to 40% chance to skip platform
+                return;
+            }
+            
+            platforms.push(new Platform(x, y, isDisappearing ? 'disappearing' : 'normal'));
+        }
+
+        const keys = {};
+        document.addEventListener('keydown', (e) => {
+            keys[e.key.toLowerCase()] = true;
+        });
+        document.addEventListener('keyup', (e) => {
+            keys[e.key.toLowerCase()] = false;
+        });
+
+        const gravity = 0.5;
+        const friction = 0.8;
+        const jumpPadForce = -20;
+
+        function update() {
+            if (keys.a || keys.d || !player.isGrounded || Math.abs(player.velocityX) > 0.1) {
+                player.lastMoveTime = Date.now();
+            }
+
+            // Update and check platform states
+            platforms.forEach(platform => platform.update());
+
+            if (player.isGrounded && Math.abs(player.velocityX) < 0.1) {
+                const currentTime = Date.now();
+                if (currentTime - player.lastMoveTime >= player.standTimer) {
+                    player.reset();
+                    initPlatforms();
+                    return;
+                }
+            }
+
+            if (keys.d && player.velocityX < player.maxSpeed) {
+                player.velocityX += 0.5;
+            }
+            if (keys.a && player.velocityX > -player.maxSpeed) {
+                player.velocityX -= 0.5;
+            }
+
+            if (!keys.a && !keys.d) {
+                player.velocityX *= friction;
+            }
+
+            player.velocityY += gravity;
+
+            if (keys.w && player.isGrounded) {
+                player.velocityY = player.jumpForce;
+                player.isGrounded = false;
+            }
+
+            player.x += player.velocityX;
+            player.y += player.velocityY;
+
+            if (player.x < player.size/2) {
+                player.x = player.size/2;
+                player.velocityX = 0;
+            }
+            if (player.x > canvas.width - player.size/2) {
+                player.x = canvas.width - player.size/2;
+                player.velocityX = 0;
+            }
+
+            player.isGrounded = false;
+
+            platforms.forEach(platform => {
+                if (!platform.isActive()) return;
+                
+                if (player.x + player.size/2 > platform.x - platform.width/2 &&
+                    player.x - player.size/2 < platform.x + platform.width/2 &&
+                    player.y + player.size/2 > platform.y &&
+                    player.y - player.size/2 < platform.y + platform.height) {
+                    
+                    if (player.velocityY > 0 && 
+                        player.y < platform.y + platform.height/2) {
+                        player.y = platform.y - player.size/2;
+                        player.velocityY = 0;
+                        player.isGrounded = true;
+
+                        if (platform.hasJumpPad && platform.type === 'normal') {
+                            player.velocityY = jumpPadForce;
+                            player.isGrounded = false;
+                        }
+                    }
+                }
+            });
+
+            if (player.y < canvas.height * 0.4) {
+                const diff = canvas.height * 0.4 - player.y;
+                player.y += diff;
+                platforms.forEach(platform => platform.y += diff);
+                player.score += Math.floor(diff);
+                highScore = Math.max(highScore, player.score);
+            }
+
+            // Generate platforms more frequently, for every 1.6 times as many
+            while (platforms[platforms.length - 1].y > 0) {
+                generatePlatform();
+            }
+
+            platforms = platforms.filter(platform => platform.y < canvas.height + 100);
+
+            if (player.y > canvas.height + player.size) {
+                player.reset();
+                initPlatforms();
+            }
+        }
+
+        function render() {
+            ctx.fillStyle = '#87CEEB';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            platforms.forEach(platform => platform.draw());
+            player.draw();
+
+            ctx.fillStyle = 'white';
+            ctx.font = '20px Arial';
+            ctx.fillText(`Score: ${Math.floor(player.score)}`, 10, 30);
+            ctx.fillText(`High: ${Math.floor(highScore)}`, canvas.width - 120, 30);
+        }
+
+        function gameLoop() {
+            update();
+            render();
+            requestAnimationFrame(gameLoop);
+        }
+
+        initPlatforms();
+        gameLoop();
+    </script>
 </body>
 </html>
